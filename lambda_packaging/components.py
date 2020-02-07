@@ -98,7 +98,6 @@ class LambdaLayerPackaging(pulumi.ComponentResource):
                  name,
                  runtimes,
                  description,
-                 archive_path,
                  layer_name,
                  include=["**"],
                  no_deploy=[],

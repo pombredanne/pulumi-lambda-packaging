@@ -15,8 +15,7 @@ install_requires = [
 setup(
     name='lambda_packaging',
     version='0.1.0',
-    description='Pulumi-based python solution for Packaging an AWS Lambda and its Layer.',
-    long_description=readme,
+    description="Pulumi-based python solution for Packaging an AWS Lambda and its Layer.",
     url='https://github.com/nuage-studio/lambda-packaging',
     packages=find_packages(exclude=('tests', 'example')),
     zip_safe=True,
