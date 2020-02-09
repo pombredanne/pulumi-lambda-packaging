@@ -1,1 +1,1 @@
-from .components import LambdaPackaging, LambdaLayerPackaging
+from .components import LambdaLayerPackage, LambdaPackage

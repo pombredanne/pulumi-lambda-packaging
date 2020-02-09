@@ -17,6 +17,18 @@ def format_resource_name(name):
     )
     return resource_name
 
+def format_file_name(resource_name, file_name):
+    """
+    Defines a fully-formated file name
+    """
+    template = '{stack}-{resource_name}-{file_name}'
+    file_name = template.format(
+        file_name=file_name,
+        resource_name=resource_name,
+        stack=pulumi.get_stack(),
+    )
+    return file_name
+
 
 def sha256sum(filename):
     """
