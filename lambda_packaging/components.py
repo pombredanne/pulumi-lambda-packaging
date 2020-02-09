@@ -9,7 +9,7 @@ from .zip_package import ZipPackage
 from .pip_requirements import PipRequirements
 
 
-class LambdaPackaging(pulumi.ComponentResource):
+class LambdaPackage(pulumi.ComponentResource):
     """
     Creates a package of project files 
     and install/dependencies from requirements.txt.
@@ -29,16 +29,24 @@ class LambdaPackaging(pulumi.ComponentResource):
                  include=["**"],
                  no_deploy=[],
                  exclude=[],
+                 install_folder='requirements/',
+                 container_path='/io',
+                 target_folder='.plp',
+                 docker_image='lambci/lambda',
                  opts=None):
         """
         :name: name of the resource
-        :requirements_path: relative path of requirements.txt file
+        :requirements_path: relative path of requirements.txt file from __main__.py
         :runtime: python runtime
         :layer: use lambda layer
         :dockerize: dockerize python requirements
         :no_deploy: list of requirements to prevent from packaging
-        :include: list of dirs, files to include while packaging
-        :exclude: list of dirs, files to exclude while packaging
+        :include: list of glob pattern for files to include (default: "**")
+        :exclude: list of glob pattern for dirs, files to exclude while packaging
+        :install_folder: name of the folder to install requirements before packaging(temporary)
+        :container: mount path for container
+        :target_folder: temporary folder for pip installation
+        :docker_image: docker image name to use for pip installation
         """
         super().__init__('nuage:aws:LambdaPackage', name, None, opts)
         self.name = name
@@ -49,46 +57,58 @@ class LambdaPackaging(pulumi.ComponentResource):
         self.no_deploy = no_deploy
         self.include = include
         self.exclude = exclude
+
+        # root of __main__.py file
         self.project_root = os.path.dirname(
             os.path.abspath(sys.modules['__main__'].__file__))
 
         # install requirements
         pip = PipRequirements(
-            self.project_root, requirements_path=requirements_path, dockerize=self.dockerize)
+            resource_name=name,
+            project_root=self.project_root,
+            requirements_path=requirements_path,
+            dockerize=self.dockerize,
+            target_folder=target_folder,
+            install_folder=install_folder,
+            no_deploy=self.no_deploy,
+            docker_image=docker_image,
+            container_path=container_path
+        )
         pip.install_requirements()
 
         # zip files and dirs
         packaged_asset = ZipPackage(
-            self.project_root, self.include, self.exclude)
+            resource_name=name,
+            project_root=self.project_root,
+            include=self.include,
+            exclude=self.exclude,
+            install_folder=install_folder,
+            target_folder=target_folder
+        )
 
-        # create layer containing requirements
-        self.lambda_layer = None
+        self.layer_archive_path = None
         if layer:
             self.package_archive = packaged_asset.zip_package(
                 requirements=False)
-            self.requirements_archive = packaged_asset.zip_requirements()
-            self.lambda_layer = lambda_.LayerVersion(
-                format_resource_name(f'{self.name}-lambda-layer'),
-                compatible_runtimes=[self.runtime],
-                description=f"Dependencies for Lambda function: {self.name}",
-                code=self.requirements_archive,
-                layer_name=format_resource_name(
-                    f'{self.name}-lambda-layer'),
-                source_code_hash=filebase64sha256(self.requirements_archive)
-            )
+            self.layer_archive_path = packaged_asset.zip_requirements()
+
+            # output archive path and lambda layer resource
+            self.register_outputs({
+                'package_archive': self.package_archive,
+                'layer_archive': self.layer_archive_path
+            })
         else:
             self.package_archive = packaged_asset.zip_package()
 
-        # output archive path and lambda layer resource
-        self.register_outputs({
-            'package_archive': self.package_archive,
-            'lambda_layer_arn': self.lambda_layer
-        })
+            # output archive path and lambda layer resource
+            self.register_outputs({
+                'package_archive': self.package_archive
+            })
 
 
-class LambdaLayerPackaging(pulumi.ComponentResource):
+class LambdaLayerPackage(pulumi.ComponentResource):
     """
-    Create lamabda layer from the files.
+    Creates lambda layer from the files.
 
     By default it zips all the project files.
     Use "include" and "exclude" parameter to only add specific folder/files.
@@ -102,6 +122,7 @@ class LambdaLayerPackaging(pulumi.ComponentResource):
                  include=["**"],
                  no_deploy=[],
                  exclude=[],
+                 target_folder='.plp/',
                  opts=None):
         """
         :name: name of the resource
@@ -110,6 +131,7 @@ class LambdaLayerPackaging(pulumi.ComponentResource):
         :description: Description for lambda layer
         :include: list of glob pattern for files to include (default: all)
         :exclude: list of glob pattern for dirs, files to exclude while packaging
+        :target_folder: temporary folder for pip installation
         """
         super().__init__('nuage:aws:LambdaLayerPackage', name, None, opts)
 
@@ -124,19 +146,23 @@ class LambdaLayerPackaging(pulumi.ComponentResource):
 
         # package project into a zipfile
         packaged_asset = ZipPackage(
-            self.project_root, self.include, self.exclude)
+            resource_name=name,
+            project_root=self.project_root,
+            include=self.include,
+            exclude=self.exclude,
+            target_folder=target_folder)
         self.archive_path = packaged_asset.zip_package(requirements=False)
 
         # create lambda layer
-        self.lambda_layer = lambda_.LayerVersion(name,
-                                                 compatible_runtimes=self.runtimes,
-                                                 description=self.description,
-                                                 code=self.archive_path,
-                                                 layer_name=self.layer_name,
-                                                 source_code_hash=filebase64sha256(
-                                                     self.archive_path)
-                                                 )
-        #output layer archive path and lambda layer resource
+        self.lambda_layer = lambda_.LayerVersion(
+            name,
+            compatible_runtimes=self.runtimes,
+            description=self.description,
+            code=self.archive_path,
+            layer_name=self.layer_name,
+            source_code_hash=filebase64sha256(self.archive_path))
+    
+        # output layer archive path and lambda layer resource
         self.register_outputs({
             'layer_archive': self.archive_path,
             'lambda_layer': self.lambda_layer
