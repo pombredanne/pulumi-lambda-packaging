@@ -13,8 +13,6 @@ Pulumi-based python solution for Packaging an AWS Lambda and its Layer.
 ├── lambda_packaging
 │   ├── __init__.py
 │   ├── components.py
-│   ├── config.py
-│   ├── docker.py
 │   ├── pip_requirements.py
 │   ├── utils.py
 │   └── zip_package.py
