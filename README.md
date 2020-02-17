@@ -1,62 +1,95 @@
-[![Deploy](https://get.pulumi.com/new/button.svg)](https://app.pulumi.com/new)
-
 # Overview
 
-The purpose of this bucket is to set up best practices for quickly developing Pulumi projects in Python.
+Pulumi-based python solution for Packaging an AWS Lambda and its Layer.
 
-## Directory structure
-
+## Directory Structure
 ```
-.
-├── Makefile
-├── Pulumi.yaml
 ├── README.md
-├── handler.py
-├── pulumi
-│   ├── __main__.py
-│   ├── compute.py
-│   ├── dynamic_providers
-│   │   ├── __init__.py
-│   │   └── github
-│   │       ├── __init__.py
-│   │       └── label.py
-│   ├── label.py
-│   ├── stacks
-│   │   └── Pulumi.dev.yaml
-│   ├── storage.py
-│   └── utils.py
-└── requirements
-    ├── dynamic_providers.txt
-    ├── global.txt
-    └── lambda.txt
+├── example
+│   ├── Pulumi.dev.yaml
+│   ├── Pulumi.yaml
+│   ├── __main__.py
+│   └── requirements.txt
+├── lambda_packaging
+│   ├── __init__.py
+│   ├── components.py
+│   ├── pip_requirements.py
+│   ├── utils.py
+│   └── zip_package.py
+├── requirements.txt
+├── setup.cfg
+├── setup.py
+└── tests
 ```
 
-Note that each Pulumi resource is separated by category (ex: compute, storage...)
-[__main__.py](./pulumi/__main__.py) merely contains import statements.
+## Installation
+```
+$ pip install lambda-packaging
+```
+## Quick Start
 
-## Dynamic Provider
+### LambdaPackaging
+Creates a zip package of project files and install dependencies from requirements.txt.
 
-Pulumi [Dynamic Providers](https://www.pulumi.com/docs/intro/concepts/programming-model/#dynamicproviders) allows you to easily code in Python a provising logic for resources that do not yet have a Terraform provider.
+Use "dockerize=True" to pip install requirements using lambda environment docker image.
 
-The boilerplate is inspired upon the [Github example](https://www.pulumi.com/docs/intro/concepts/programming-model/#example-github-labels-rest-api) in the documentation.
+Use "layer=True" to package dependencies and code seperately.
 
-The dynamic provider itself is in [pulumi/dynamic_providers/github](./pulumi/dynamic_providers/github) but the resource declaration has been moved to [pulumi/label.py](./pulumi/label.py).
+Example: 
 
-Since most dynamic providers will require SDKs, we've created a separate requirements file for that purpose.
+``` python
 
-## Lambda
+....
 
-The [Makefile](./Makefile) contains basic boilerplate for packaging a Lambda (which you may or may not need depending on your project).
+....
 
-In order to notify Pulumi wether the Lambda needs to be updated, we're using a hashing mechanism (see [utils.py](./pulumi/utils.py) that checks the packages zip file : everytime you make a new zip, Pulumi detects the change and performs the update of the function during the next `pulumi up`.
 
-Lambda also has its own requirements file in order to limit the package size : we only put in [requirements/lambda.txt](./requirements/lambda.txt) what is actually needed for the Lambda to run.
-If your Lambda doesn't require extra `pip` packages then you can simply ignore the Layer part of the Makefile and in [compute.py](./pulumi/compute.py).
+lambda_package = LambdaPackage(
+    name='example-test',
+    no_deploy=['pulumi', 'pulumi_aws', 'pulumi_docker'],
+    exclude=['__main__.py']
+)
 
-# Getting started
 
-A good place to start with Pulumi is the [Documentation](https://www.pulumi.com/docs/).
 
-Most of the AWS-related documentation in Pulumi is somewhat lacking, so the best place to get info regarding AWS is to look at the [Terraform counterpart](https://www.terraform.io/docs/providers/aws/) (since Pulumi is merely a wrapper around it).
 
-Ultimately, the best documentation for Pulumi is its source code available on [Github](https://github.com/pulumi/pulumi-aws/tree/master/sdk/python/pulumi_aws).
+# Create Lambda function
+function = lambda_.Function(
+    resource_name='function',
+    role=role.arn,
+    runtime='python3.6',
+    description=f'Lambda function running the f`{pulumi.get_project()}` ({pulumi.get_stack()}) project',
+    handler='handler.lambda_handler',
+    code=lambda_package.package_archive
+)
+
+# path of package archive and dependencies package
+# containing installed requirements
+pulumi.export("package_archive_path", lambda_package.package_archive)
+pulumi.export("layer_archive_path", lambda_package.layer_archive_path)
+
+```
+
+### LambdaLayerPackaging
+Creates a lambda layer. By default it zips all the project files.
+
+Use "include" and "exclude" parameter to only add specific folders/files.
+
+```python
+from pulumi import log
+from lambda_packaging import LambdaLayerPackaging
+
+
+lambda_layer = LambdaLayerPackaging('example-layer-test',
+                                    runtimes=['python3.6'],
+                                    layer_name="example-layer",
+                                    description="Example Layer for Testing",
+                                    exclude=[".gitignore", '__main__.py'])
+
+pulumi.export('layer_arn', lambda_layer.arn)
+
+```
+
+```bash
+$ pulumi up
+```

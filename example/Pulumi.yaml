@@ -1,0 +1,3 @@
+name: lambda-packaging-test
+runtime: python
+description: A minimal AWS Python Pulumi program

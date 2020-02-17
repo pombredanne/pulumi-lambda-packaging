@@ -17,6 +17,19 @@ def format_resource_name(name):
     )
     return resource_name
 
+def format_file_name(resource_name, file_name):
+    """
+    Defines a fully-formated file name
+    """
+    template = '{stack}-{resource_name}-{file_name}'
+    file_name = template.format(
+        file_name=file_name,
+        resource_name=resource_name,
+        stack=pulumi.get_stack(),
+    )
+    return file_name
+
+
 def sha256sum(filename):
     """
     Helper function that calculates the hash of a file
@@ -28,13 +41,14 @@ def sha256sum(filename):
     NB: we're deliberately using `digest` instead of `hexdigest` in order to
     mimic Terraform.
     """
-    h  = hashlib.sha256()
-    b  = bytearray(128*1024)
+    h = hashlib.sha256()
+    b = bytearray(128*1024)
     mv = memoryview(b)
     with open(filename, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
+        for n in iter(lambda: f.readinto(mv), 0):
             h.update(mv[:n])
     return h.digest()
+
 
 def filebase64sha256(filename):
     """
