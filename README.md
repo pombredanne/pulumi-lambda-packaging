@@ -37,11 +37,11 @@ Use "layer=True" to package dependencies and code seperately.
 
 Example: 
 
-``` python
+```python
 
-....
+...
 
-....
+...
 
 
 lambda_package = LambdaPackage(
