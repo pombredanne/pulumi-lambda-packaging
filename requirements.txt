@@ -1,9 +1,11 @@
 # Pulumi
-pulumi==1.8.1
+pulumi==1.13.0
 pulumi_aws==1.17.0
 pulumi_docker==1.2.0
 requirements-parser==0.2.0
 
 # Code quality
+black
 pylint==2.4.4
-autopep8==1.4.4
+
+pytest

@@ -1,31 +1,26 @@
 import base64
 import hashlib
-
 import pulumi
-config = pulumi.Config()
 
 
 def format_resource_name(name):
     """
     Defines a fully-formated resource name
     """
-    template = '{project}-{stack}-{name}'
+    template = "{project}-{stack}-{name}"
     resource_name = template.format(
-        name=name,
-        project=pulumi.get_project(),
-        stack=pulumi.get_stack(),
+        name=name, project=pulumi.get_project(), stack=pulumi.get_stack(),
     )
     return resource_name
+
 
 def format_file_name(resource_name, file_name):
     """
     Defines a fully-formated file name
     """
-    template = '{stack}-{resource_name}-{file_name}'
+    template = "{stack}-{resource_name}-{file_name}"
     file_name = template.format(
-        file_name=file_name,
-        resource_name=resource_name,
-        stack=pulumi.get_stack(),
+        file_name=file_name, resource_name=resource_name, stack=pulumi.get_stack(),
     )
     return file_name
 
@@ -42,9 +37,9 @@ def sha256sum(filename):
     mimic Terraform.
     """
     h = hashlib.sha256()
-    b = bytearray(128*1024)
+    b = bytearray(128 * 1024)
     mv = memoryview(b)
-    with open(filename, 'rb', buffering=0) as f:
+    with open(filename, "rb", buffering=0) as f:
         for n in iter(lambda: f.readinto(mv), 0):
             h.update(mv[:n])
     return h.digest()
